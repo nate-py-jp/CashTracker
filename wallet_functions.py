@@ -1,7 +1,6 @@
 import tkinter as tk
-from wallet_backend import Wallet
+from wallet_backend import Wallet, load_wallets, save_to_json
 import json
-from json import JSONDecodeError
 
 # TODO: let you choose the type of money being used with an api
 # TODO: let you convert your wallet to other money
@@ -13,6 +12,7 @@ from json import JSONDecodeError
 # TODO: test the code
 # TODO: give you categories for the spent money
 # TODO: display the categories of spent money in a pie chart with pandas/seaborn
+# TODO: move json stuff to wallet_backend
 
 
 # create wallet, root
@@ -20,20 +20,10 @@ root = tk.Tk()
 root.title("CashTracker")
 
 # declare global variable(s) - to be in functions
-global deposit_entry, withdraw_entry, name_entry
+global deposit_entry, withdraw_entry, name_entry, deposit_category_chooser, withdraw_category_chooser
 
 
-# non-tk functions
-def load_wallets():
-    try:
-        with open("wallets.json", "r") as f:
-            local_wallets_list = json.load(f)
-
-    except JSONDecodeError:
-        local_wallets_list = []
-    return local_wallets_list
-
-
+# helper functions
 def add_commas(event):
     # Get the current text in the Entry widget
     current_nums = event.widget.get()
@@ -90,7 +80,6 @@ def existing_wallet_screen(previous_screen):
 
     for wallet in wallets_dicts:
         wallet_object = Wallet(**wallet)
-        print(wallet_object.name, wallet_object.current_amount)
         wallet_button = tk.Button(
             text=f"{wallet_object.name}",
             command=lambda w=Wallet(**wallet): main_screen(
@@ -152,8 +141,6 @@ def create_new_wallet_screen(previous_screen):
 
 def main_screen(wallet, previous_canvas=None):
 
-    print(wallet, wallet.name, wallet.current_amount)
-
     # delete previous screen
     if previous_canvas:
         previous_canvas.delete("all")
@@ -176,6 +163,14 @@ def main_screen(wallet, previous_canvas=None):
             wallet=wallet)
     )
 
+    history_button = tk.Button(
+        text="history",
+        command=lambda: history_screen(
+            previous_canvas=canvas,
+            wallet=wallet
+        )
+    )
+
     back_button = tk.Button(
         text="Back",
         command=lambda: welcome_screen(previous_screen=canvas)
@@ -185,6 +180,7 @@ def main_screen(wallet, previous_canvas=None):
     canvas.create_window(250, 250, window=back_button)
     canvas.create_window(250, 100, window=withdraw_button)
     canvas.create_window(150, 100, window=deposit_button)
+    canvas.create_window(350, 100, window=history_button)
 
     # clear previous screen
     if previous_canvas:
@@ -197,10 +193,38 @@ def main_screen(wallet, previous_canvas=None):
     update_welcome(canvas, wallet)
 
 
+def history_screen(wallet, previous_canvas):
+
+    # create canvas
+    canvas = tk.Canvas(root, width=400, height=300)
+
+    # create widgets
+    key_label = tk.Label(text="AMOUNT / TIME / CATEGORY", font=("Helvetica", 16, "bold"))
+    back_button = tk.Button(
+        text="Back",
+        command=lambda: main_screen(wallet=wallet, previous_canvas=canvas)
+    )
+
+    history_height = 50
+
+    for action in wallet.withdraw_history:
+        action_label = tk.Label(text=f"{action['amount']} / {action['time']} / {action['category']}")
+        canvas.create_window(200, history_height, window=action_label)
+        history_height += 20
+
+    # put widgets on canvas
+    canvas.create_window(200, 30, window=key_label)
+    canvas.create_window(250, 250, window=back_button)
+
+    previous_canvas.forget()
+
+    canvas.pack()
+
+
 def deposit_screen(wallet, previous_canvas):
 
     # declare global variable(s)
-    global deposit_entry
+    global deposit_entry, deposit_category_chooser
 
     # create canvas
     canvas = tk.Canvas(root, width=400, height=300)
@@ -220,12 +244,20 @@ def deposit_screen(wallet, previous_canvas):
         )
     )
 
+    items = ["other", "snacks and drinks", "lunch bentos", "weekends"]
+    list_items = tk.Variable(value=items)
+    deposit_category_label = tk.Label(canvas, text="Choose a category: ")
+    deposit_category_chooser = tk.Listbox(canvas, height=5, width=10, listvariable=list_items,selectmode=tk.SINGLE)
+
     deposit_entry.bind("<KeyRelease>", add_commas)
+    deposit_category_chooser.bind('<<ListboxSelect>>', lambda x: x)
 
     # display widgets on screen
     canvas.create_window(200, 20, window=deposit_label)
     canvas.create_window(200, 80, window=deposit_entry)
     canvas.create_window(350, 80, window=deposit_entry_button)
+    canvas.create_window(100, 200, window=deposit_category_label)
+    canvas.create_window(250, 200, window=deposit_category_chooser)
 
     # put canvas on screen
     previous_canvas.pack_forget()
@@ -238,7 +270,7 @@ def deposit_screen(wallet, previous_canvas):
 def withdraw_screen(previous_canvas=None, wallet=None):
 
     # declare global variable(s)
-    global withdraw_entry
+    global withdraw_entry, withdraw_category_chooser
 
     # create canvas
     canvas = tk.Canvas(root, width=400, height=300)
@@ -250,7 +282,7 @@ def withdraw_screen(previous_canvas=None, wallet=None):
         canvas,
         text="Enter",
         command=lambda: (
-            withdraw(wallet=wallet),
+            withdraw(wallet=wallet, category=get_category()),
             main_screen(
                 previous_canvas=canvas,
                 wallet=wallet))
@@ -258,10 +290,27 @@ def withdraw_screen(previous_canvas=None, wallet=None):
 
     withdraw_entry.bind("<KeyRelease>", add_commas)
 
+    items = ["other", "snacks and drinks", "lunch bentos", "weekends"]
+    list_items = tk.Variable(value=items)
+
+    withdraw_category_label = tk.Label(canvas, text="Choose a category: ")
+    withdraw_category_chooser = tk.Listbox(canvas, height=5, width=10, listvariable=list_items, selectmode=tk.SINGLE)
+
+
+    def get_category():
+        category_info = withdraw_category_chooser.curselection()
+        category = withdraw_category_chooser.get(category_info)
+        print(category)
+        return category
+
+    withdraw_entry.bind("<KeyRelease>", add_commas)
+
     # display widgets on screen
     canvas.create_window(200, 20, window=withdraw_label)
     canvas.create_window(200, 80, window=withdraw_entry)
     canvas.create_window(350, 80, window=withdraw_entry_button)
+    canvas.create_window(100, 200, window=withdraw_category_label)
+    canvas.create_window(250, 200, window=withdraw_category_chooser)
 
     # put canvas on screen
     previous_canvas.pack_forget()
@@ -283,19 +332,11 @@ def update_welcome(canvas, wallet):
 def create_new_wallet():
 
     wallet_name = name_entry.get()
-    wallet = Wallet(0, wallet_name)
-    try:
-        with open("wallets.json", "r") as f:
-            wallet_dicts = json.load(f)
-
-    except JSONDecodeError as e:
-        wallet_dicts = []
-
+    wallet = Wallet(0, wallet_name, [], [])
+    wallet_dicts = load_wallets()
     wallet_dicts.append(wallet.__dict__)
-
     with open("wallets.json", "w") as f:
         json.dump(wallet_dicts, f)
-
     return wallet
 
 
@@ -303,43 +344,15 @@ def deposit(wallet):
 
     amount = float(deposit_entry.get().replace(",", ""))
     wallet.deposit(amount)
-
-    # save deposit to json
-    wallets_list = load_wallets()
-    wallets_dict_list = []
-    for wallet_dict in wallets_list:
-        wallet_obj = Wallet(**wallet_dict)
-        print(wallet_obj.name)
-        if wallet_obj.name == wallet.name:
-            wallet_obj.current_amount = wallet.current_amount
-            print(wallet_obj.current_amount)
-        wallet_dict = wallet_obj.__dict__
-        wallets_dict_list.append(wallet_dict)
-    with open("wallets.json", "w") as f:
-        json.dump(wallets_dict_list, f)
-
+    save_to_json(wallet)
     return wallet
 
 
-def withdraw(wallet):
+def withdraw(wallet, category):
 
     amount = float(withdraw_entry.get().replace(",", ""))
-    wallet.withdraw(amount)
-
-    # save deposit to json
-    wallets_list = load_wallets()
-    wallets_dict_list = []
-    for wallet_dict in wallets_list:
-        wallet_obj = Wallet(**wallet_dict)
-        print(wallet_obj.name)
-        if wallet_obj.name == wallet.name:
-            wallet_obj.current_amount = wallet.current_amount
-            print(wallet_obj.current_amount)
-        wallet_dict = wallet_obj.__dict__
-        wallets_dict_list.append(wallet_dict)
-    with open("wallets.json", "w") as f:
-        json.dump(wallets_dict_list, f)
-
+    wallet.withdraw(amount, category)
+    save_to_json(wallet)
     return wallet
 
 
