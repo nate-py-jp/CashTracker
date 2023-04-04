@@ -1,11 +1,14 @@
 import tkinter as tk
 from wallet_backend import Wallet, load_wallets, save_to_json
 import json
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from pprint import pprint
 
 # TODO: let you choose the type of money being used with an api
 # TODO: let you convert your wallet to other money
 # TODO: let you automatically deposit or withdraw from images of receipts
-# TODO: make modern-looking UI
+# TODO: have modern-looking UI
 # TODO: make it so you can't go below 0
 # TODO: make a pop up that verifies the amount you will deposit or withdraw
 # TODO: refactor for repetition
@@ -204,8 +207,12 @@ def history_screen(wallet, previous_canvas):
         text="Back",
         command=lambda: main_screen(wallet=wallet, previous_canvas=canvas)
     )
+    display_categories = tk.Button(
+        text="Display Categories Chart",
+        command=lambda: categories_display_screen(wallet=wallet, previous_canvas=canvas)
+    )
 
-    history_height = 50
+    history_height = 100
 
     for action in wallet.withdraw_history:
         action_label = tk.Label(text=f"{action['amount']} / {action['time']} / {action['category']}")
@@ -213,12 +220,55 @@ def history_screen(wallet, previous_canvas):
         history_height += 20
 
     # put widgets on canvas
-    canvas.create_window(200, 30, window=key_label)
-    canvas.create_window(250, 250, window=back_button)
+    canvas.create_window(200, 70, window=key_label)
+    canvas.create_window(250, 280, window=back_button)
+    canvas.create_window(200, 30, window=display_categories)
 
     previous_canvas.forget()
 
     canvas.pack()
+
+
+def categories_display_screen(wallet, previous_canvas):
+
+    # TODO: make it so wallets with 0 amounts/missing values works
+    # TODO: make the previous canvas go away
+
+    canvas = tk.Canvas(root, width=400, height=300)
+    canvas.pack()
+
+    # data for the pie chart
+    pie_data = wallet.withdraw_history
+
+    # get the non-zero amounts from the pie_data list
+    amounts = [data['amount'] for data in pie_data if data['amount'] != 0.0]
+
+    # data for the total amount
+    total_data = wallet.deposit_history
+
+    # calculate the total amount from total_data list
+    total_amount = sum(data['amount'] for data in total_data if data['amount'] != 0.0)
+
+    labels = [data['category'] for data in pie_data if data['amount'] > 0]
+    amounts.append(total_amount)
+    labels.append('remaining')
+
+    # create the pie chart
+    fig, ax = plt.subplots()
+    ax.pie(amounts, labels=labels, autopct='%1.1f%%', explode=[.1 if label == "remaining" else 0 for label in labels])
+    ax.set_title(f"Monthly Cash Deposited: {total_amount:.0f}")
+
+    # create canvas, create widgets, put widgets on canvas
+    back_button = tk.Button(
+        text="Back",
+        command=lambda: history_screen(wallet=wallet, previous_canvas=canvas)
+    )
+    canvas.create_window(250, 450, window=back_button)
+    fig_canvas = FigureCanvasTkAgg(fig, master=canvas)
+    fig_canvas.draw()
+    fig_canvas.get_tk_widget().pack()
+
+    previous_canvas.pack_forget()
 
 
 def deposit_screen(wallet, previous_canvas):
