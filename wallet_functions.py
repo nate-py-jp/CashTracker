@@ -10,7 +10,6 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # TODO: have modern-looking UI
 # TODO: make it so you can't go below 0
 # TODO: make a pop up that verifies the amount you will deposit or withdraw
-# TODO: refactor for repetition
 
 # create wallet, root
 root = tk.Tk()
