@@ -3,7 +3,6 @@ from wallet_backend import Wallet, load_wallets, save_to_json
 import json
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from pprint import pprint
 
 # TODO: let you choose the type of money being used with an api
 # TODO: let you convert your wallet to other money
@@ -13,10 +12,6 @@ from pprint import pprint
 # TODO: make a pop up that verifies the amount you will deposit or withdraw
 # TODO: refactor for repetition
 # TODO: test the code
-# TODO: give you categories for the spent money
-# TODO: display the categories of spent money in a pie chart with pandas/seaborn
-# TODO: move json stuff to wallet_backend
-
 
 # create wallet, root
 root = tk.Tk()
@@ -373,7 +368,7 @@ def withdraw_screen(previous_canvas=None, wallet=None):
 def update_welcome(canvas, wallet):
 
     # create welcome widget
-    welcome = tk.Label(text=f"{wallet.name} has ¥{wallet.current_amount:,.2f}")
+    welcome = tk.Label(text=f"{wallet.name} has {wallet.current_amount:,.2f} JPY")
 
     # put widget on screen
     canvas.create_window(200, 50, window=welcome)
